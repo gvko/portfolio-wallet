@@ -4,14 +4,28 @@ extern crate dotenv_codegen;
 
 use std::io::Error;
 use rocket::{Build, Rocket};
-use rocket::serde::json::json;
+use rocket::serde::{Deserialize, Serialize, json::json, json::Json};
 use reqwest::{Client, header};
 use dotenv_codegen::dotenv;
 
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(crate = "rocket::serde")]
+struct AlchemyApiResult {
+    address: String,
+    tokenBalances: Vec<TokenBalance>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(crate = "rocket::serde")]
+struct TokenBalance {
+    contractAddress: String,
+    tokenBalance: String,
+}
+
 #[get("/coins/<wallet_address>")]
-async fn get_coins(wallet_address: &str) -> Result<(), Error> {
-    let API_URL = dotenv!("API_URL");
-    let API_KEY = dotenv!("API_KEY");
+async fn get_coins(wallet_address: &str) -> Result<Json<Vec<TokenBalance>>, Error> {
+    let api_url = dotenv!("API_URL");
+    let api_key = dotenv!("API_KEY");
     let wallet_address = wallet_address.to_string();
 
     let data = json!({
@@ -26,7 +40,7 @@ async fn get_coins(wallet_address: &str) -> Result<(), Error> {
 
     let client = Client::new();
     let response = client
-        .post(format!("{}/{}", API_URL, API_KEY))
+        .post(format!("{}/{}", api_url, api_key))
         .header(header::CONTENT_TYPE, "application/json")
         .json(&data)
         .send()
@@ -34,11 +48,11 @@ async fn get_coins(wallet_address: &str) -> Result<(), Error> {
 
     let result = response.unwrap();
     let result = result.json::<serde_json::Value>().await.unwrap();
-    let result = result["result"].clone();
+    let result: AlchemyApiResult = serde_json::from_value(result["result"].clone()).unwrap();
 
-    println!("Result: {}", result);
+    println!("{:?}", result);
 
-    Ok(())
+    Ok(Json(result.tokenBalances))
 }
 
 /// Main function of the Rocket framework.
