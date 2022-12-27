@@ -65,6 +65,25 @@ async fn make_request<T>(api_url: &String, endpoint: String, params: String) -> 
     result
 }
 
+async fn get_balances(api_url: &String, wallet_address: String) -> TokenBalancesApiResult {
+    let result: TokenBalancesApiResult = make_request(
+        &api_url,
+        "alchemy_getTokenBalances".to_string(),
+        format!("{}", wallet_address),
+    ).await;
+    result
+}
+
+async fn get_tokens_metadata(api_url: &String, contract_address: &String) -> TokenInfoApiResult {
+    let result: TokenInfoApiResult = make_request(
+        &api_url,
+        "alchemy_getTokenMetadata".to_string(),
+        format!("{}", contract_address),
+    ).await;
+    result
+}
+// TODO: make function for making request to endpoint for token info
+
 #[get("/coins/<wallet_address>")]
 async fn get_coins(wallet_address: &str) -> Result<Json<Vec<UserCoinBalance>>, Error> {
     let api_base_url = dotenv!("API_URL");
@@ -72,11 +91,11 @@ async fn get_coins(wallet_address: &str) -> Result<Json<Vec<UserCoinBalance>>, E
     let api_url = format!("{}/{}", api_base_url, api_key);
     let wallet_address = wallet_address.to_string();
 
-    let result: TokenBalancesApiResult = make_request(&api_url, "alchemy_getTokenBalances".to_string(), format!("{}", wallet_address)).await;
+    let result = get_balances(&api_url, wallet_address).await;
     let mut user_coins: Vec<UserCoinBalance> = vec![];
 
     for token_balance in &result.tokenBalances {
-        let result: TokenInfoApiResult = make_request(&api_url, "alchemy_getTokenMetadata".to_string(), format!("{}", token_balance.contractAddress)).await;
+        let result = get_tokens_metadata(&api_url, &token_balance.contractAddress).await;
         let logo = result.logo.clone().unwrap_or("null".to_string());
 
         let hexnum = token_balance.tokenBalance.trim_start_matches("0x");
