@@ -2,35 +2,14 @@
 extern crate rocket;
 extern crate dotenv_codegen;
 
+mod alchemy_api;
+
 use std::io::Error;
 use std::u128;
 use rocket::{Build, Rocket};
-use rocket::serde::{Deserialize, Serialize, json::json, json::Json};
-use reqwest::{Client, header};
+use rocket::serde::{Deserialize, Serialize, json::Json};
 use dotenv_codegen::dotenv;
-
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(crate = "rocket::serde")]
-struct TokenBalancesApiResult {
-    address: String,
-    tokenBalances: Vec<TokenBalance>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(crate = "rocket::serde")]
-struct TokenInfoApiResult {
-    decimals: i32,
-    logo: Option<String>,
-    name: String,
-    symbol: String,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(crate = "rocket::serde")]
-struct TokenBalance {
-    contractAddress: String,
-    tokenBalance: String,
-}
+use alchemy_api::*;
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(crate = "rocket::serde")]
@@ -40,49 +19,6 @@ struct UserCoinBalance {
     symbol: String,
     logo: String,
 }
-
-async fn make_request<T>(api_url: &String, endpoint: String, params: String) -> T where T: for<'a> Deserialize<'a> {
-    let data = json!({
-        "jsonrpc": "2.0",
-        "method": endpoint,
-        "headers": {
-            "Content-Type": "application/json",
-        },
-        "params": [params]
-    });
-
-    let client = Client::new();
-    let res = client
-        .post(api_url)
-        .header(header::CONTENT_TYPE, "application/json")
-        .json(&data)
-        .send()
-        .await;
-
-    let result = res.unwrap();
-    let result = result.json::<serde_json::Value>().await.unwrap();
-    let result: T = serde_json::from_value(result["result"].clone()).unwrap();
-    result
-}
-
-async fn get_balances(api_url: &String, wallet_address: String) -> TokenBalancesApiResult {
-    let result: TokenBalancesApiResult = make_request(
-        &api_url,
-        "alchemy_getTokenBalances".to_string(),
-        format!("{}", wallet_address),
-    ).await;
-    result
-}
-
-async fn get_tokens_metadata(api_url: &String, contract_address: &String) -> TokenInfoApiResult {
-    let result: TokenInfoApiResult = make_request(
-        &api_url,
-        "alchemy_getTokenMetadata".to_string(),
-        format!("{}", contract_address),
-    ).await;
-    result
-}
-// TODO: make function for making request to endpoint for token info
 
 #[get("/coins/<wallet_address>")]
 async fn get_coins(wallet_address: &str) -> Result<Json<Vec<UserCoinBalance>>, Error> {
