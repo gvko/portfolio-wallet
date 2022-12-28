@@ -18,9 +18,9 @@ export default function Home() {
 
             console.log(response);
             setLoading(false);
-        } catch (error) {
+        } catch (err) {
             console.log('==> ERROR: Could not fetch coins');
-            console.error(error);
+            console.error(err);
             setLoading(false);
         }
     };
