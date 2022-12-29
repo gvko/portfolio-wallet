@@ -6,6 +6,7 @@ import axios from 'axios';
 export default function Home() {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
+    const [tokens, setTokens] = useState([]);
 
     const handleConnect = async () => {
         try {
@@ -16,7 +17,7 @@ export default function Home() {
 
             const response = await axios.get(`http://127.0.0.1:8000/coins/${accounts[0]}`);
 
-            console.log(response);
+            setTokens(response.data);
             setLoading(false);
         } catch (err) {
             console.log('==> ERROR: Could not fetch coins');
@@ -30,6 +31,30 @@ export default function Home() {
             <button onClick={handleConnect} disabled={loading}>
                 Connect with Metamask
             </button>
+            {tokens.length > 0 && (
+                <table>
+                    <thead>
+                    <tr>
+                        <th>Symbol</th>
+                        <th>Name</th>
+                        <th>Balance</th>
+                        <th>Logo</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {tokens.map(token => (
+                        <tr key={token.symbol}>
+                            <td>{token.symbol}</td>
+                            <td>{token.name}</td>
+                            <td>{token.balance}</td>
+                            <td>
+                                <img src={token.logo} alt={token.name}/>
+                            </td>
+                        </tr>
+                    ))}
+                    </tbody>
+                </table>
+            )}
         </div>
     );
 }
