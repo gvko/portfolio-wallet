@@ -15,12 +15,12 @@ export default function Home() {
             const accounts = await window.ethereum.enable();
             console.log(accounts[0]);
 
-            const response = await axios.get(`http://127.0.0.1:8000/coins/${accounts[0]}`);
+            const response = await axios.get(`http://127.0.0.1:8000/tokens/${accounts[0]}`);
 
             setTokens(response.data);
             setLoading(false);
         } catch (err) {
-            console.log('==> ERROR: Could not fetch coins');
+            console.log('==> ERROR: Could not fetch tokens');
             console.error(err);
             setLoading(false);
         }

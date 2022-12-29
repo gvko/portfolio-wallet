@@ -3,16 +3,16 @@ use rocket::serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(crate = "rocket::serde")]
-pub struct UserCoinBalance {
+pub struct UserTokenBalance {
     pub balance: f64,
     pub name: String,
     pub symbol: String,
     pub logo: String,
 }
 
-pub async fn get_coins_for_address(api_url: String, wallet_address: String) -> Vec<UserCoinBalance> {
+pub async fn get_tokens_for_address(api_url: String, wallet_address: String) -> Vec<UserTokenBalance> {
     let result = get_balances(&api_url, wallet_address).await;
-    let mut user_coins: Vec<UserCoinBalance> = vec![];
+    let mut user_tokens: Vec<UserTokenBalance> = vec![];
 
     for token_balance in &result.tokenBalances {
         let result = get_tokens_metadata(&api_url, &token_balance.contractAddress).await;
@@ -23,14 +23,14 @@ pub async fn get_coins_for_address(api_url: String, wallet_address: String) -> V
         let balance = balance_as_float / 10_f64.powi(result.decimals);
         let balance = balance.round() / 100.0;
 
-        let current_coin_balance = UserCoinBalance {
+        let current_token_balance = UserTokenBalance {
             balance,
             name: result.name,
             symbol: result.symbol,
             logo,
         };
-        user_coins.push(current_coin_balance);
+        user_tokens.push(current_token_balance);
     }
 
-    user_coins
+    user_tokens
 }
