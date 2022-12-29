@@ -3,11 +3,11 @@ extern crate rocket;
 extern crate dotenv_codegen;
 
 mod alchemy_api;
-mod tokens_service;
+mod services;
 mod middlewares;
 
-use tokens_service::*;
 use middlewares::CORS;
+use services::{token_service, nft_service};
 use std::io::Error;
 use dotenv_codegen::dotenv;
 use rocket::{
@@ -15,23 +15,36 @@ use rocket::{
     serde::{json::Json},
 };
 
+const API_URL_ETH_TOKEN: &str = dotenv!("API_URL_ETH_TOKEN");
+const API_URL_ETH_NFT: &str = dotenv!("API_URL_ETH_NFT");
+const API_KEY: &str = dotenv!("API_KEY");
+
 #[get("/tokens/<wallet_address>")]
-async fn get_tokens(wallet_address: &str) -> Result<Json<Vec<UserTokenBalance>>, Error> {
-    let api_base_url = dotenv!("API_URL");
-    let api_key = dotenv!("API_KEY");
-    let api_url = format!("{}/{}", api_base_url, api_key);
+async fn get_tokens(wallet_address: &str) -> Result<Json<Vec<token_service::UserTokenBalance>>, Error> {
+    let api_url = format!("{}/{}", API_URL_ETH_TOKEN, API_KEY);
     let wallet_address = wallet_address.to_string();
 
-    let user_tokens = get_tokens_for_address(api_url, wallet_address).await;
-
+    let user_tokens = token_service::get_tokens_for_address(api_url, wallet_address).await;
     Ok(Json(user_tokens))
+}
+
+#[get("/nfts/<wallet_address>")]
+async fn get_nfts(wallet_address: &str) -> Result<Json<Vec<nft_service::UserNfts>>, Error> {
+    let api_url = format!("{}/{}", API_URL_ETH_TOKEN, API_KEY);
+    let wallet_address = wallet_address.to_string();
+
+    let user_nfts = nft_service::get_nfts_for_address(api_url, wallet_address).await;
+    Ok(Json(user_nfts))
 }
 
 /// Main function of the Rocket framework.
 /// Build the server instance and attach routes.
 fn rocket() -> Rocket<Build> {
     rocket::build()
-        .mount("/", routes![get_tokens])
+        .mount("/", routes![
+            get_tokens,
+            get_nfts
+        ])
 }
 
 #[rocket::main]

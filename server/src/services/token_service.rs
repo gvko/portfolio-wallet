@@ -11,10 +11,10 @@ pub struct UserTokenBalance {
 }
 
 pub async fn get_tokens_for_address(api_url: String, wallet_address: String) -> Vec<UserTokenBalance> {
-    let result = get_balances(&api_url, wallet_address).await;
+    let tokens = get_balances(&api_url, wallet_address).await;
     let mut user_tokens: Vec<UserTokenBalance> = vec![];
 
-    for token_balance in &result.tokenBalances {
+    for token_balance in &tokens.tokenBalances {
         let result = get_tokens_metadata(&api_url, &token_balance.contractAddress).await;
         let logo = result.logo.clone().unwrap_or("null".to_string());
 
