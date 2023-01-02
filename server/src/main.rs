@@ -30,7 +30,7 @@ async fn get_tokens(wallet_address: &str) -> Result<Json<Vec<token_service::User
 
 #[get("/nfts/<wallet_address>")]
 async fn get_nfts(wallet_address: &str) -> Result<Json<Vec<nft_service::UserNfts>>, Error> {
-    let api_url = format!("{}/{}", API_URL_ETH_TOKEN, API_KEY);
+    let api_url = format!("{}/{}", API_URL_ETH_NFT, API_KEY);
     let wallet_address = wallet_address.to_string();
 
     let user_nfts = nft_service::get_nfts_for_address(api_url, wallet_address).await;

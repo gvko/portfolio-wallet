@@ -3,6 +3,7 @@ use reqwest::{Client, header};
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(crate = "rocket::serde")]
+#[allow(non_snake_case)]
 pub struct TokenBalancesApiResult {
     pub address: String,
     pub tokenBalances: Vec<TokenBalance>,
@@ -10,6 +11,7 @@ pub struct TokenBalancesApiResult {
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(crate = "rocket::serde")]
+#[allow(non_snake_case)]
 pub struct TokenBalance {
     pub contractAddress: String,
     pub tokenBalance: String,
@@ -26,10 +28,22 @@ pub struct TokenInfoApiResult {
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(crate = "rocket::serde")]
-pub struct NftInfoApiResult {}
+pub struct NftInfoApiResult {
+    pub title: String,
+    pub description: String,
+
+}
+
+struct Endpoints;
+
+impl Endpoints {
+    const GET_TOKEN_BALANCES: &'static str = "alchemy_getTokenBalances";
+    const GET_TOKEN_METADATA: &'static str = "alchemy_getTokenMetadata";
+    const GET_NFTS: &'static str = "getNFTs";
+}
 
 /// Make an RPC POST request to a given endpoint, parse and return the JSON response
-async fn make_post_request<T>(api_url: &String, endpoint: String, params: String) -> T where T: for<'a> Deserialize<'a> {
+async fn make_post_request<T>(api_url: &String, endpoint: &str, params: String) -> T where T: for<'a> Deserialize<'a> {
     let data = json!({
         "jsonrpc": "2.0",
         "method": endpoint,
@@ -54,16 +68,19 @@ async fn make_post_request<T>(api_url: &String, endpoint: String, params: String
 }
 
 /// Make an HTTP GET request to a given endpoint, parse and return the JSON response
-async fn make_get_request<T>(api_url: &String, endpoint: String, params: (String, String)) -> T where T: for<'a> Deserialize<'a> {
+async fn make_get_request<T>(api_url: &String, endpoint: &str, params: (String, String)) -> T where T: for<'a> Deserialize<'a> {
     let client = Client::new();
+    let url = format!("{}/{}", api_url, endpoint);
     let res = client
-        .get(api_url)
+        .get(url)
         .query(&[params])
         .send()
         .await;
 
     let result = res.unwrap();
+    println!("{:#?}", result);
     let result = result.json::<serde_json::Value>().await.unwrap();
+    println!("{:#?}", result);
     let result: T = serde_json::from_value(result).unwrap();
     result
 }
@@ -72,7 +89,7 @@ async fn make_get_request<T>(api_url: &String, endpoint: String, params: (String
 pub async fn get_balances(api_url: &String, wallet_address: String) -> TokenBalancesApiResult {
     let result: TokenBalancesApiResult = make_post_request(
         &api_url,
-        "alchemy_getTokenBalances".to_string(),
+        Endpoints::GET_TOKEN_BALANCES,
         format!("{}", wallet_address),
     ).await;
     result
@@ -82,7 +99,7 @@ pub async fn get_balances(api_url: &String, wallet_address: String) -> TokenBala
 pub async fn get_tokens_metadata(api_url: &String, contract_address: &String) -> TokenInfoApiResult {
     let result: TokenInfoApiResult = make_post_request(
         &api_url,
-        "alchemy_getTokenMetadata".to_string(),
+        Endpoints::GET_TOKEN_METADATA,
         format!("{}", contract_address),
     ).await;
     result
@@ -92,7 +109,7 @@ pub async fn get_tokens_metadata(api_url: &String, contract_address: &String) ->
 pub async fn get_nfts(api_url: &String, wallet_address: String) -> NftInfoApiResult {
     let result: NftInfoApiResult = make_get_request(
         &api_url,
-        "getNFTs".to_string(),
+        Endpoints::GET_NFTS,
         ("owner".to_string(), wallet_address),
     ).await;
     result
