@@ -28,10 +28,41 @@ pub struct TokenInfoApiResult {
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(crate = "rocket::serde")]
+#[allow(non_snake_case)]
 pub struct NftInfoApiResult {
+    pub blockHash: String,
+    pub totalCount: u16,
+    pub ownedNfts: Vec<NftApiObject>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(crate = "rocket::serde")]
+#[allow(non_snake_case)]
+pub struct NftApiObject {
     pub title: String,
     pub description: String,
+    pub media: Vec<NftApiObjMedia>,
+    pub metadata: NftApiObjMetadata,
+}
 
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(crate = "rocket::serde")]
+#[allow(non_snake_case)]
+pub struct NftApiObjMedia {
+    pub raw: String,
+    pub gateway: String,
+    pub thumbnail: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(crate = "rocket::serde")]
+#[allow(non_snake_case)]
+pub struct NftApiObjMetadata {
+    pub date: u64,
+    pub image: String,
+    pub name: String,
+    pub description: String,
+    pub edition: u32,
 }
 
 struct Endpoints;
@@ -78,9 +109,7 @@ async fn make_get_request<T>(api_url: &String, endpoint: &str, params: (String, 
         .await;
 
     let result = res.unwrap();
-    println!("{:#?}", result);
     let result = result.json::<serde_json::Value>().await.unwrap();
-    println!("{:#?}", result);
     let result: T = serde_json::from_value(result).unwrap();
     result
 }
