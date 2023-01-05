@@ -80,6 +80,13 @@ impl Network {
     pub const POLYGON: &'static str = "Polygon";
 }
 
+pub struct Asset;
+
+impl Asset {
+    const TOKEN: &'static str = "token";
+    const NFT: &'static str = "nft";
+}
+
 const API_URL_BASE_PREFIX: &str = dotenv!("API_URL_BASE_PREFIX");
 const API_URL_PREFIX_ETH: &str = dotenv!("API_URL_PREFIX_ETH");
 const API_URL_PREFIX_POLYGON: &str = dotenv!("API_URL_PREFIX_POLYGON");
@@ -167,34 +174,18 @@ async fn make_get_request<T>(api_url: &String, endpoint: &str, params: (String, 
 /// ```
 /// let url = construct_url_tokens("ETH");
 /// ```
-fn construct_url_tokens(network: &str) -> String {
+fn construct_api_url(network: &str, asset: &str) -> String {
     let (network_string, api_key) = match network {
         Network::ETH => (API_URL_PREFIX_ETH.to_string(), API_KEY_ETH.to_string()),
         Network::POLYGON => (API_URL_PREFIX_POLYGON.to_string(), API_KEY_POLYGON.to_string()),
         _ => todo!()
     };
-    format!("{}{}{}/{}", API_URL_BASE_PREFIX, network_string, API_URL_SUFFIX_TOKEN, api_key)
-}
-
-/// Constructs a URL for the nft endpoint of a particular network.
-///
-/// # Parameters
-/// * `network`: A string slice representing the network for which the URL should be constructed.
-///
-/// # Returns
-/// A string representing the constructed URL.
-///
-/// # Example
-/// ```
-/// let url = construct_url_nfts("ETH");
-/// ```
-fn construct_url_nfts(network: &str) -> String {
-    let (network_string, api_key) = match network {
-        Network::ETH => (API_URL_PREFIX_ETH.to_string(), API_KEY_ETH.to_string()),
-        Network::POLYGON => (API_URL_PREFIX_POLYGON.to_string(), API_KEY_POLYGON.to_string()),
+    let asset_suffix = match asset {
+        Asset::TOKEN => API_URL_SUFFIX_TOKEN.to_string(),
+        Asset::NFT => API_URL_SUFFIX_NFT.to_string(),
         _ => todo!()
     };
-    format!("{}{}{}/{}", API_URL_BASE_PREFIX, network_string, API_URL_SUFFIX_NFT, api_key)
+    format!("{}{}{}/{}", API_URL_BASE_PREFIX, network_string, asset_suffix, api_key)
 }
 
 /// Get a list of tokens owned by a given address
@@ -211,7 +202,7 @@ fn construct_url_nfts(network: &str) -> String {
 /// let token_balances = get_balances("ETH", "0x1234567890abcdef").await;
 /// ```
 pub async fn get_token_balances(network: &str, wallet_address: String) -> TokenBalancesApiResult {
-    let url = construct_url_tokens(network);
+    let url = construct_api_url(network, Asset::TOKEN);
     let result: TokenBalancesApiResult = make_post_request(
         &url,
         Endpoints::GET_TOKEN_BALANCES,
@@ -234,7 +225,7 @@ pub async fn get_token_balances(network: &str, wallet_address: String) -> TokenB
 /// let token_metadata = get_tokens_metadata("ETH", "0x1234567890abcdef").await;
 /// ```
 pub async fn get_tokens_metadata(network: &str, contract_address: &String) -> TokenInfoApiResult {
-    let url = construct_url_tokens(network);
+    let url = construct_api_url(network, Asset::TOKEN);
     let result: TokenInfoApiResult = make_post_request(
         &url,
         Endpoints::GET_TOKEN_METADATA,
@@ -257,7 +248,7 @@ pub async fn get_tokens_metadata(network: &str, contract_address: &String) -> To
 /// let nfts = get_nfts("ETH", "0x1234567890abcdef").await;
 /// ```
 pub async fn get_nfts(network: &str, wallet_address: String) -> NftInfoApiResult {
-    let url = construct_url_nfts(network);
+    let url = construct_api_url(network, Asset::NFT);
     let result: NftInfoApiResult = make_get_request(
         &url,
         Endpoints::GET_NFTS,
