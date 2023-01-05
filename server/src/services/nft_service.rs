@@ -11,8 +11,8 @@ pub struct UserNft {
     pub date: u64,
 }
 
-pub async fn get_nfts_for_address(api_url: String, wallet_address: String) -> Vec<UserNft> {
-    let nfts = get_nfts(&api_url, wallet_address).await;
+pub async fn get_nfts_for_address(wallet_address: String) -> Vec<UserNft> {
+    let nfts = get_nfts(Network::ETH, wallet_address).await;
     let mut user_nfts: Vec<UserNft> = vec![];
 
     for nft in &nfts.ownedNfts {
