@@ -6,13 +6,13 @@ use reqwest::{Client, header};
 #[allow(non_snake_case)]
 pub struct TokenBalancesApiResult {
     pub address: String,
-    pub tokenBalances: Vec<TokenBalance>,
+    pub tokenBalances: Vec<TokenBalanceApiObj>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(crate = "rocket::serde")]
 #[allow(non_snake_case)]
-pub struct TokenBalance {
+pub struct TokenBalanceApiObj {
     pub contractAddress: String,
     pub tokenBalance: String,
 }
@@ -68,7 +68,22 @@ pub struct NftApiObjMetadata {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(crate = "rocket::serde")]
 #[allow(non_snake_case)]
-pub struct TransactionsApiResult {}
+pub struct TransactionsApiResult {
+    pub transfers: Vec<TransactionApiObj>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(crate = "rocket::serde")]
+#[allow(non_snake_case)]
+pub struct TransactionApiObj {
+    pub asset: String,
+    pub blockNum: String,
+    pub category: String,
+    pub from: String,
+    pub to: String,
+    pub hash: String,
+    pub value: f64,
+}
 
 struct Endpoints;
 
@@ -138,6 +153,7 @@ async fn make_rpc_request<T, G>(api_url: &String, endpoint: &str, params: Vec<G>
     let result = res.unwrap();
     let result = result.json::<serde_json::Value>().await.unwrap();
     let result: T = serde_json::from_value(result["result"].clone()).unwrap();
+
     result
 }
 

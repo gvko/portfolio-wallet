@@ -32,7 +32,7 @@ async fn get_nfts(wallet_address: &str) -> Result<Json<Vec<nft_service::UserNft>
 }
 
 #[get("/transactions/<wallet_address>")]
-async fn get_transactions(wallet_address: &str) -> Result<Json<Vec<transaction_service::UserTransactions>>, Error> {
+async fn get_transactions(wallet_address: &str) -> Result<Json<Vec<transaction_service::UserTransaction>>, Error> {
     let wallet_address = wallet_address.to_string();
 
     let user_transactions = transaction_service::get_transactions_for_address(wallet_address).await;
