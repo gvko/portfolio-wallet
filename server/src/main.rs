@@ -8,7 +8,7 @@ mod services;
 mod middlewares;
 
 use middlewares::CORS;
-use services::{token_service, nft_service};
+use services::{token_service, nft_service, transaction_service};
 use std::io::Error;
 use rocket::{
     Build, Rocket,
@@ -31,13 +31,22 @@ async fn get_nfts(wallet_address: &str) -> Result<Json<Vec<nft_service::UserNft>
     Ok(Json(user_nfts))
 }
 
+#[get("/transactions/<wallet_address>")]
+async fn get_transactions(wallet_address: &str) -> Result<Json<Vec<transaction_service::UserTransactions>>, Error> {
+    let wallet_address = wallet_address.to_string();
+
+    let user_transactions = transaction_service::get_transactions_for_address(wallet_address).await;
+    Ok(Json(user_transactions))
+}
+
 /// Main function of the Rocket framework.
 /// Build the server instance and attach routes.
 fn rocket() -> Rocket<Build> {
     rocket::build()
         .mount("/", routes![
             get_tokens,
-            get_nfts
+            get_nfts,
+            get_transactions
         ])
 }
 

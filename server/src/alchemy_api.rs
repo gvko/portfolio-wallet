@@ -1,4 +1,4 @@
-use rocket::serde::{Deserialize, Serialize, json::json};
+use rocket::serde::{Deserialize, Serialize, json::{json, to_string}};
 use reqwest::{Client, header};
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -65,12 +65,18 @@ pub struct NftApiObjMetadata {
     pub edition: u32,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(crate = "rocket::serde")]
+#[allow(non_snake_case)]
+pub struct TransactionsApiResult {}
+
 struct Endpoints;
 
 impl Endpoints {
     const GET_TOKEN_BALANCES: &'static str = "alchemy_getTokenBalances";
     const GET_TOKEN_METADATA: &'static str = "alchemy_getTokenMetadata";
     const GET_NFTS: &'static str = "getNFTs";
+    const GET_TRANSACTIONS: &'static str = "alchemy_getAssetTransfers";
 }
 
 pub struct Network;
@@ -95,7 +101,7 @@ const API_URL_SUFFIX_NFT: &str = dotenv!("API_URL_SUFFIX_NFT");
 const API_KEY_ETH: &str = dotenv!("API_KEY_ETH");
 const API_KEY_POLYGON: &str = dotenv!("API_KEY_POLYGON");
 
-/// Make an RPC POST request to a given endpoint, parse and return the JSON response
+/// Make an RPC request to a given endpoint, parse and return the JSON response
 ///
 /// # Parameters
 /// * `api_url`: A string slice representing the base URL of the API to which the request should be made.
@@ -109,14 +115,16 @@ const API_KEY_POLYGON: &str = dotenv!("API_KEY_POLYGON");
 /// ```
 /// let response: MyResponseType = make_post_request(&"api_url", "my_endpoint", "some_value").await;
 /// ```
-async fn make_post_request<T>(api_url: &String, endpoint: &str, params: String) -> T where T: for<'a> Deserialize<'a> {
+async fn make_rpc_request<T, G>(api_url: &String, endpoint: &str, params: Vec<G>) -> T
+    where T: for<'a> Deserialize<'a>,
+          G: Serialize {
     let data = json!({
         "jsonrpc": "2.0",
         "method": endpoint,
         "headers": {
             "Content-Type": "application/json",
         },
-        "params": [params]
+        "params": params
     });
 
     let client = Client::new();
@@ -192,21 +200,21 @@ fn construct_api_url(network: &str, asset: &str) -> String {
 ///
 /// # Parameters
 /// * `network`: A string slice representing the network on which the token is located.
-/// * `contract_address`: A string slice representing the contract address of the token.
+/// * `wallet_address`: A string slice representing the wallet address for which we search.
 ///
 /// # Returns
 /// A `TokenBalancesApiResult` object representing the response from the API.
 ///
 /// # Example
 /// ```
-/// let token_balances = get_balances("ETH", "0x1234567890abcdef").await;
+/// let token_balances = get_token_balances("ETH", "0x1234567890abcdef").await;
 /// ```
 pub async fn get_token_balances(network: &str, wallet_address: String) -> TokenBalancesApiResult {
     let url = construct_api_url(network, Asset::TOKEN);
-    let result: TokenBalancesApiResult = make_post_request(
+    let result: TokenBalancesApiResult = make_rpc_request(
         &url,
         Endpoints::GET_TOKEN_BALANCES,
-        format!("{}", wallet_address),
+        vec![wallet_address],
     ).await;
     result
 }
@@ -226,10 +234,10 @@ pub async fn get_token_balances(network: &str, wallet_address: String) -> TokenB
 /// ```
 pub async fn get_tokens_metadata(network: &str, contract_address: &String) -> TokenInfoApiResult {
     let url = construct_api_url(network, Asset::TOKEN);
-    let result: TokenInfoApiResult = make_post_request(
+    let result: TokenInfoApiResult = make_rpc_request(
         &url,
         Endpoints::GET_TOKEN_METADATA,
-        format!("{}", contract_address),
+        vec![contract_address],
     ).await;
     result
 }
@@ -253,6 +261,46 @@ pub async fn get_nfts(network: &str, wallet_address: String) -> NftInfoApiResult
         &url,
         Endpoints::GET_NFTS,
         ("owner".to_string(), wallet_address),
+    ).await;
+    result
+}
+
+/// Get a list of transactions for a given address
+///
+/// # Parameters
+/// * `network`: A string slice representing the network on which the token is located.
+/// * `wallet_address`: A string slice representing the wallet address for which we search.
+///
+/// # Returns
+/// A `TokenBalancesApiResult` object representing the response from the API.
+///
+/// # Example
+/// ```
+/// let transactions = get_wallet_transactions("ETH", "0x1234567890abcdef").await;
+/// ```
+pub async fn get_wallet_transactions(network: &str, wallet_address: String) -> TransactionsApiResult {
+    let url = construct_api_url(network, Asset::TOKEN);
+    let params = json!({
+        "fromAddress": wallet_address,
+        "fromBlock": "0xF1EB1D", // TODO: make this dynamically populated
+        "toBlock": "latest",
+        "category": [
+            "external",
+            "internal",
+            "erc20",
+            "erc721",
+            "erc1155"
+        ],
+        "withMetadata": false,
+        "excludeZeroValue": true,
+        "maxCount": "0x3e8",
+        "order": "desc"
+    });
+
+    let result: TransactionsApiResult = make_rpc_request(
+        &url,
+        Endpoints::GET_TRANSACTIONS,
+        vec![params],
     ).await;
     result
 }
