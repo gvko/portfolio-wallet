@@ -1,5 +1,4 @@
 use crate::alchemy_api::*;
-use rocket::serde::{Deserialize, Serialize};
 
 pub type UserTransaction = TransactionApiObj;
 

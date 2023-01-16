@@ -1,4 +1,4 @@
-use rocket::serde::{Deserialize, Serialize, json::{json, to_string}};
+use rocket::serde::{Deserialize, Serialize, json::{json}};
 use reqwest::{Client, header};
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -131,8 +131,8 @@ const API_KEY_POLYGON: &str = dotenv!("API_KEY_POLYGON");
 /// let response: MyResponseType = make_post_request(&"api_url", "my_endpoint", "some_value").await;
 /// ```
 async fn make_rpc_request<T, G>(api_url: &String, endpoint: &str, params: Vec<G>) -> T
-    where T: for<'a> Deserialize<'a>,
-          G: Serialize {
+    where T: for<'a> Deserialize<'a>, G: Serialize
+{
     let data = json!({
         "jsonrpc": "2.0",
         "method": endpoint,
