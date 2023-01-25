@@ -3,8 +3,8 @@ extern crate rocket;
 #[macro_use]
 extern crate dotenv_codegen;
 
-mod alchemy_api;
-mod services;
+pub mod alchemy_api;
+pub mod services;
 mod middlewares;
 
 use middlewares::CORS;

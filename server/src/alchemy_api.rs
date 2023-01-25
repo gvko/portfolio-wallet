@@ -1,10 +1,11 @@
+use mockall::automock;
 use rocket::serde::{Deserialize, Serialize, json::{json}};
 use reqwest::{Client, header};
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(crate = "rocket::serde")]
 #[allow(non_snake_case)]
-pub struct TokenBalancesApiResult {
+pub struct TokenBalances {
     pub address: String,
     pub tokenBalances: Vec<TokenBalanceApiObj>,
 }
@@ -17,47 +18,47 @@ pub struct TokenBalanceApiObj {
     pub tokenBalance: String,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(crate = "rocket::serde")]
-pub struct TokenInfoApiResult {
+pub struct TokenInfo {
     pub decimals: i32,
     pub logo: Option<String>,
     pub name: String,
     pub symbol: String,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(crate = "rocket::serde")]
 #[allow(non_snake_case)]
-pub struct NftInfoApiResult {
+pub struct OwnedNftList {
     pub blockHash: String,
     pub totalCount: u16,
-    pub ownedNfts: Vec<NftApiObject>,
+    pub ownedNfts: Vec<NftObject>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(crate = "rocket::serde")]
 #[allow(non_snake_case)]
-pub struct NftApiObject {
+pub struct NftObject {
     pub title: String,
     pub description: String,
-    pub media: Vec<NftApiObjMedia>,
-    pub metadata: NftApiObjMetadata,
+    pub media: Vec<NftMedia>,
+    pub metadata: NftMetadata,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(crate = "rocket::serde")]
 #[allow(non_snake_case)]
-pub struct NftApiObjMedia {
+pub struct NftMedia {
     pub raw: String,
     pub gateway: String,
     pub thumbnail: String,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(crate = "rocket::serde")]
 #[allow(non_snake_case)]
-pub struct NftApiObjMetadata {
+pub struct NftMetadata {
     pub date: u64,
     pub image: String,
     pub name: String,
@@ -68,7 +69,7 @@ pub struct NftApiObjMetadata {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(crate = "rocket::serde")]
 #[allow(non_snake_case)]
-pub struct TransactionsApiResult {
+pub struct TransactionsList {
     pub transfers: Vec<TransactionApiObj>,
 }
 
@@ -225,9 +226,9 @@ fn construct_api_url(network: &str, asset: &str) -> String {
 /// ```
 /// let token_balances = get_token_balances("ETH", "0x1234567890abcdef").await;
 /// ```
-pub async fn get_token_balances(network: &str, wallet_address: String) -> TokenBalancesApiResult {
+pub async fn get_token_balances(network: &str, wallet_address: String) -> TokenBalances {
     let url = construct_api_url(network, Asset::TOKEN);
-    let result: TokenBalancesApiResult = make_rpc_request(
+    let result: TokenBalances = make_rpc_request(
         &url,
         Endpoints::GET_TOKEN_BALANCES,
         vec![wallet_address],
@@ -248,9 +249,9 @@ pub async fn get_token_balances(network: &str, wallet_address: String) -> TokenB
 /// ```
 /// let token_metadata = get_tokens_metadata("ETH", "0x1234567890abcdef").await;
 /// ```
-pub async fn get_tokens_metadata(network: &str, contract_address: &String) -> TokenInfoApiResult {
+pub async fn get_tokens_metadata(network: &str, contract_address: &String) -> TokenInfo {
     let url = construct_api_url(network, Asset::TOKEN);
-    let result: TokenInfoApiResult = make_rpc_request(
+    let result: TokenInfo = make_rpc_request(
         &url,
         Endpoints::GET_TOKEN_METADATA,
         vec![contract_address],
@@ -271,9 +272,9 @@ pub async fn get_tokens_metadata(network: &str, contract_address: &String) -> To
 /// ```
 /// let nfts = get_nfts("ETH", "0x1234567890abcdef").await;
 /// ```
-pub async fn get_nfts(network: &str, wallet_address: String) -> NftInfoApiResult {
+pub async fn get_nfts(network: &str, wallet_address: String) -> OwnedNftList {
     let url = construct_api_url(network, Asset::NFT);
-    let result: NftInfoApiResult = make_get_request(
+    let result: OwnedNftList = make_get_request(
         &url,
         Endpoints::GET_NFTS,
         ("owner".to_string(), wallet_address),
@@ -294,7 +295,7 @@ pub async fn get_nfts(network: &str, wallet_address: String) -> NftInfoApiResult
 /// ```
 /// let transactions = get_wallet_transactions("ETH", "0x1234567890abcdef").await;
 /// ```
-pub async fn get_wallet_transactions(network: &str, wallet_address: String) -> TransactionsApiResult {
+pub async fn get_wallet_transactions(network: &str, wallet_address: String) -> TransactionsList {
     let url = construct_api_url(network, Asset::TOKEN);
     let params = json!({
         "fromAddress": wallet_address,
@@ -313,7 +314,7 @@ pub async fn get_wallet_transactions(network: &str, wallet_address: String) -> T
         "order": "desc"
     });
 
-    let result: TransactionsApiResult = make_rpc_request(
+    let result: TransactionsList = make_rpc_request(
         &url,
         Endpoints::GET_TRANSACTIONS,
         vec![params],
