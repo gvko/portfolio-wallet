@@ -1,3 +1,4 @@
+use std::fmt::{Debug};
 use reqwest::{header, Client};
 use rocket::serde::{json::json, Deserialize, Serialize};
 
@@ -135,7 +136,7 @@ const API_KEY_POLYGON: &str = dotenv!("API_KEY_POLYGON");
 async fn make_rpc_request<T, G>(api_url: &String, endpoint: &str, params: Vec<G>) -> Result<T, SerdeError>
     where
         T: for<'a> Deserialize<'a>,
-        G: Serialize,
+        G: Serialize + Debug,
 {
     let data = json!({
         "jsonrpc": "2.0",
@@ -152,12 +153,21 @@ async fn make_rpc_request<T, G>(api_url: &String, endpoint: &str, params: Vec<G>
         .header(header::CONTENT_TYPE, "application/json")
         .json(&data)
         .send()
-        .await;
+        .await
+        .unwrap();
 
-    let result = res.unwrap();
-    let result = result.json::<serde_json::Value>().await.unwrap();
-    let result = serde_json::from_value::<T>(result["result"].clone());
-    result
+    let result = res.json::<serde_json::Value>().await.unwrap();
+    let result_deserialized = serde_json::from_value::<T>(result["result"].clone());
+    match result_deserialized {
+        Ok(result) => Ok(result),
+        Err(err) => {
+            error!("Could not deserialize the Alchemy API response. Endpoint: {endpoint}, Params: {params:?}");
+            println!("{:#?}", err.to_string());
+            println!("{:#?}", result);
+            println!("{result}");
+            Err(err)
+        }
+    }
 }
 
 /// Make an HTTP GET request to a given endpoint, parse and return the JSON response

@@ -2,6 +2,8 @@
 extern crate rocket;
 #[macro_use]
 extern crate dotenv_codegen;
+#[macro_use]
+extern crate log;
 
 pub mod alchemy_api;
 mod middlewares;
@@ -49,6 +51,7 @@ fn rocket() -> Rocket<Build> {
 #[rocket::main]
 async fn main() -> Result<(), rocket::Error> {
     dotenv::dotenv().ok();
+    // env_logger::init();
 
     let _rocket = rocket().attach(CORS).launch().await?;
 
