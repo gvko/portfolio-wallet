@@ -1,6 +1,5 @@
-use mockall::automock;
-use rocket::serde::{Deserialize, Serialize, json::{json}};
-use reqwest::{Client, header};
+use reqwest::{header, Client};
+use rocket::serde::{json::json, Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(crate = "rocket::serde")]
@@ -132,7 +131,9 @@ const API_KEY_POLYGON: &str = dotenv!("API_KEY_POLYGON");
 /// let response: MyResponseType = make_post_request(&"api_url", "my_endpoint", "some_value").await;
 /// ```
 async fn make_rpc_request<T, G>(api_url: &String, endpoint: &str, params: Vec<G>) -> T
-    where T: for<'a> Deserialize<'a>, G: Serialize
+where
+    T: for<'a> Deserialize<'a>,
+    G: Serialize,
 {
     let data = json!({
         "jsonrpc": "2.0",
@@ -172,14 +173,13 @@ async fn make_rpc_request<T, G>(api_url: &String, endpoint: &str, params: Vec<G>
 /// ```
 /// let response: MyResponseType = make_get_request(&"api_url", "my_endpoint", ("param1", "value1")).await;
 /// ```
-async fn make_get_request<T>(api_url: &String, endpoint: &str, params: (String, String)) -> T where T: for<'a> Deserialize<'a> {
+async fn make_get_request<T>(api_url: &String, endpoint: &str, params: (String, String)) -> T
+where
+    T: for<'a> Deserialize<'a>,
+{
     let client = Client::new();
     let url = format!("{}/{}", api_url, endpoint);
-    let res = client
-        .get(url)
-        .query(&[params])
-        .send()
-        .await;
+    let res = client.get(url).query(&[params]).send().await;
 
     let result = res.unwrap();
     let result = result.json::<serde_json::Value>().await.unwrap();
@@ -202,15 +202,21 @@ async fn make_get_request<T>(api_url: &String, endpoint: &str, params: (String, 
 fn construct_api_url(network: &str, asset: &str) -> String {
     let (network_string, api_key) = match network {
         Network::ETH => (API_URL_PREFIX_ETH.to_string(), API_KEY_ETH.to_string()),
-        Network::POLYGON => (API_URL_PREFIX_POLYGON.to_string(), API_KEY_POLYGON.to_string()),
-        _ => todo!()
+        Network::POLYGON => (
+            API_URL_PREFIX_POLYGON.to_string(),
+            API_KEY_POLYGON.to_string(),
+        ),
+        _ => todo!(),
     };
     let asset_suffix = match asset {
         Asset::TOKEN => API_URL_SUFFIX_TOKEN.to_string(),
         Asset::NFT => API_URL_SUFFIX_NFT.to_string(),
-        _ => todo!()
+        _ => todo!(),
     };
-    format!("{}{}{}/{}", API_URL_BASE_PREFIX, network_string, asset_suffix, api_key)
+    format!(
+        "{}{}{}/{}",
+        API_URL_BASE_PREFIX, network_string, asset_suffix, api_key
+    )
 }
 
 /// Get a list of tokens owned by a given address
@@ -228,11 +234,8 @@ fn construct_api_url(network: &str, asset: &str) -> String {
 /// ```
 pub async fn get_token_balances(network: &str, wallet_address: String) -> TokenBalances {
     let url = construct_api_url(network, Asset::TOKEN);
-    let result: TokenBalances = make_rpc_request(
-        &url,
-        Endpoints::GET_TOKEN_BALANCES,
-        vec![wallet_address],
-    ).await;
+    let result: TokenBalances =
+        make_rpc_request(&url, Endpoints::GET_TOKEN_BALANCES, vec![wallet_address]).await;
     result
 }
 
@@ -251,11 +254,8 @@ pub async fn get_token_balances(network: &str, wallet_address: String) -> TokenB
 /// ```
 pub async fn get_tokens_metadata(network: &str, contract_address: &String) -> TokenInfo {
     let url = construct_api_url(network, Asset::TOKEN);
-    let result: TokenInfo = make_rpc_request(
-        &url,
-        Endpoints::GET_TOKEN_METADATA,
-        vec![contract_address],
-    ).await;
+    let result: TokenInfo =
+        make_rpc_request(&url, Endpoints::GET_TOKEN_METADATA, vec![contract_address]).await;
     result
 }
 
@@ -278,7 +278,8 @@ pub async fn get_nfts(network: &str, wallet_address: String) -> OwnedNftList {
         &url,
         Endpoints::GET_NFTS,
         ("owner".to_string(), wallet_address),
-    ).await;
+    )
+    .await;
     result
 }
 
@@ -314,10 +315,7 @@ pub async fn get_wallet_transactions(network: &str, wallet_address: String) -> T
         "order": "desc"
     });
 
-    let result: TransactionsList = make_rpc_request(
-        &url,
-        Endpoints::GET_TRANSACTIONS,
-        vec![params],
-    ).await;
+    let result: TransactionsList =
+        make_rpc_request(&url, Endpoints::GET_TRANSACTIONS, vec![params]).await;
     result
 }

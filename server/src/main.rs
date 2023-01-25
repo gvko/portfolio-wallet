@@ -4,19 +4,18 @@ extern crate rocket;
 extern crate dotenv_codegen;
 
 pub mod alchemy_api;
-pub mod services;
 mod middlewares;
+pub mod services;
 
 use middlewares::CORS;
-use services::{token_service, nft_service, transaction_service};
+use rocket::{serde::json::Json, Build, Rocket};
+use services::{nft_service, token_service, transaction_service};
 use std::io::Error;
-use rocket::{
-    Build, Rocket,
-    serde::{json::Json},
-};
 
 #[get("/tokens/<wallet_address>")]
-async fn get_tokens(wallet_address: &str) -> Result<Json<Vec<token_service::UserTokenBalance>>, Error> {
+async fn get_tokens(
+    wallet_address: &str,
+) -> Result<Json<Vec<token_service::UserTokenBalance>>, Error> {
     let wallet_address = wallet_address.to_string();
 
     let user_tokens = token_service::get_tokens_for_address(wallet_address).await;
@@ -32,7 +31,9 @@ async fn get_nfts(wallet_address: &str) -> Result<Json<Vec<nft_service::UserNft>
 }
 
 #[get("/transactions/<wallet_address>")]
-async fn get_transactions(wallet_address: &str) -> Result<Json<Vec<transaction_service::UserTransaction>>, Error> {
+async fn get_transactions(
+    wallet_address: &str,
+) -> Result<Json<Vec<transaction_service::UserTransaction>>, Error> {
     let wallet_address = wallet_address.to_string();
 
     let user_transactions = transaction_service::get_transactions_for_address(wallet_address).await;
@@ -42,22 +43,14 @@ async fn get_transactions(wallet_address: &str) -> Result<Json<Vec<transaction_s
 /// Main function of the Rocket framework.
 /// Build the server instance and attach routes.
 fn rocket() -> Rocket<Build> {
-    rocket::build()
-        .mount("/", routes![
-            get_tokens,
-            get_nfts,
-            get_transactions
-        ])
+    rocket::build().mount("/", routes![get_tokens, get_nfts, get_transactions])
 }
 
 #[rocket::main]
 async fn main() -> Result<(), rocket::Error> {
     dotenv::dotenv().ok();
 
-    let _rocket = rocket()
-        .attach(CORS)
-        .launch()
-        .await?;
+    let _rocket = rocket().attach(CORS).launch().await?;
 
     Ok(())
 }
