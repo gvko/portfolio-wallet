@@ -164,7 +164,6 @@ async fn make_rpc_request<T, G>(api_url: &String, endpoint: &str, params: Vec<G>
             error!("Could not deserialize the Alchemy API response. Endpoint: {endpoint}, Params: {params:?}");
             println!("{:#?}", err.to_string());
             println!("{:#?}", result);
-            println!("{result}");
             Err(err)
         }
     }
@@ -190,12 +189,20 @@ async fn make_get_request<T>(api_url: &String, endpoint: &str, params: (String, 
 {
     let client = Client::new();
     let url = format!("{api_url}/{endpoint}");
-    let res = client.get(url).query(&[params]).send().await;
+    let res = client.get(url).query(&[&params]).send().await;
 
     let result = res.unwrap();
     let result = result.json::<serde_json::Value>().await.unwrap();
-    let result = serde_json::from_value::<T>(result);
-    result
+    let result_deserialized = serde_json::from_value::<T>(result.clone());
+    match result_deserialized {
+        Ok(result) => Ok(result),
+        Err(err) => {
+            error!("Could not deserialize the Alchemy API response. Endpoint: {endpoint}, Params: {params:?}");
+            println!("{:#?}", err.to_string());
+            println!("{:#?}", result);
+            Err(err)
+        }
+    }
 }
 
 /// Constructs a URL for the token endpoint of a particular network.
