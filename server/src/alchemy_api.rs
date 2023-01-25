@@ -1,6 +1,8 @@
 use reqwest::{header, Client};
 use rocket::serde::{json::json, Deserialize, Serialize};
 
+pub type SerdeError = serde_json::Error;
+
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(crate = "rocket::serde")]
 #[allow(non_snake_case)]
@@ -130,10 +132,10 @@ const API_KEY_POLYGON: &str = dotenv!("API_KEY_POLYGON");
 /// ```
 /// let response: MyResponseType = make_post_request(&"api_url", "my_endpoint", "some_value").await;
 /// ```
-async fn make_rpc_request<T, G>(api_url: &String, endpoint: &str, params: Vec<G>) -> T
-where
-    T: for<'a> Deserialize<'a>,
-    G: Serialize,
+async fn make_rpc_request<T, G>(api_url: &String, endpoint: &str, params: Vec<G>) -> Result<T, SerdeError>
+    where
+        T: for<'a> Deserialize<'a>,
+        G: Serialize,
 {
     let data = json!({
         "jsonrpc": "2.0",
@@ -154,8 +156,7 @@ where
 
     let result = res.unwrap();
     let result = result.json::<serde_json::Value>().await.unwrap();
-    let result: T = serde_json::from_value(result["result"].clone()).unwrap();
-
+    let result = serde_json::from_value::<T>(result["result"].clone());
     result
 }
 
@@ -173,9 +174,9 @@ where
 /// ```
 /// let response: MyResponseType = make_get_request(&"api_url", "my_endpoint", ("param1", "value1")).await;
 /// ```
-async fn make_get_request<T>(api_url: &String, endpoint: &str, params: (String, String)) -> T
-where
-    T: for<'a> Deserialize<'a>,
+async fn make_get_request<T>(api_url: &String, endpoint: &str, params: (String, String)) -> Result<T, SerdeError>
+    where
+        T: for<'a> Deserialize<'a>,
 {
     let client = Client::new();
     let url = format!("{api_url}/{endpoint}");
@@ -183,7 +184,7 @@ where
 
     let result = res.unwrap();
     let result = result.json::<serde_json::Value>().await.unwrap();
-    let result: T = serde_json::from_value(result).unwrap();
+    let result = serde_json::from_value::<T>(result);
     result
 }
 
@@ -206,12 +207,14 @@ fn construct_api_url(network: &str, asset: &str) -> String {
             API_URL_PREFIX_POLYGON.to_string(),
             API_KEY_POLYGON.to_string(),
         ),
-        _ => todo!(),
+        // default to ETH network
+        _ => (API_URL_PREFIX_ETH.to_string(), API_KEY_ETH.to_string()),
     };
     let asset_suffix = match asset {
         Asset::TOKEN => API_URL_SUFFIX_TOKEN.to_string(),
         Asset::NFT => API_URL_SUFFIX_NFT.to_string(),
-        _ => todo!(),
+        // default to tokens
+        _ => API_URL_SUFFIX_TOKEN.to_string(),
     };
     format!("{API_URL_BASE_PREFIX}{network_string}{asset_suffix}/{api_key}")
 }
@@ -229,11 +232,11 @@ fn construct_api_url(network: &str, asset: &str) -> String {
 /// ```
 /// let token_balances = get_token_balances("ETH", "0x1234567890abcdef").await;
 /// ```
-pub async fn get_token_balances(network: &str, wallet_address: String) -> TokenBalances {
+pub async fn get_token_balances(network: &str, wallet_address: String) -> Result<TokenBalances, SerdeError> {
     let url = construct_api_url(network, Asset::TOKEN);
     let result: TokenBalances =
-        make_rpc_request(&url, Endpoints::GET_TOKEN_BALANCES, vec![wallet_address]).await;
-    result
+        make_rpc_request(&url, Endpoints::GET_TOKEN_BALANCES, vec![wallet_address]).await?;
+    Ok(result)
 }
 
 /// Get the metadata for a given token by its contract address
@@ -249,11 +252,11 @@ pub async fn get_token_balances(network: &str, wallet_address: String) -> TokenB
 /// ```
 /// let token_metadata = get_tokens_metadata("ETH", "0x1234567890abcdef").await;
 /// ```
-pub async fn get_tokens_metadata(network: &str, contract_address: &String) -> TokenInfo {
+pub async fn get_tokens_metadata(network: &str, contract_address: &String) -> Result<TokenInfo, SerdeError> {
     let url = construct_api_url(network, Asset::TOKEN);
     let result: TokenInfo =
-        make_rpc_request(&url, Endpoints::GET_TOKEN_METADATA, vec![contract_address]).await;
-    result
+        make_rpc_request(&url, Endpoints::GET_TOKEN_METADATA, vec![contract_address]).await?;
+    Ok(result)
 }
 
 /// Get a list of NFTs owned by a given address
@@ -269,15 +272,15 @@ pub async fn get_tokens_metadata(network: &str, contract_address: &String) -> To
 /// ```
 /// let nfts = get_nfts("ETH", "0x1234567890abcdef").await;
 /// ```
-pub async fn get_nfts(network: &str, wallet_address: String) -> OwnedNftList {
+pub async fn get_nfts(network: &str, wallet_address: String) -> Result<OwnedNftList, SerdeError> {
     let url = construct_api_url(network, Asset::NFT);
     let result: OwnedNftList = make_get_request(
         &url,
         Endpoints::GET_NFTS,
         ("owner".to_string(), wallet_address),
     )
-    .await;
-    result
+        .await?;
+    Ok(result)
 }
 
 /// Get a list of transactions for a given address
@@ -293,7 +296,7 @@ pub async fn get_nfts(network: &str, wallet_address: String) -> OwnedNftList {
 /// ```
 /// let transactions = get_wallet_transactions("ETH", "0x1234567890abcdef").await;
 /// ```
-pub async fn get_wallet_transactions(network: &str, wallet_address: String) -> TransactionsList {
+pub async fn get_wallet_transactions(network: &str, wallet_address: String) -> Result<TransactionsList, SerdeError> {
     let url = construct_api_url(network, Asset::TOKEN);
     let params = json!({
         "fromAddress": wallet_address,
@@ -313,6 +316,6 @@ pub async fn get_wallet_transactions(network: &str, wallet_address: String) -> T
     });
 
     let result: TransactionsList =
-        make_rpc_request(&url, Endpoints::GET_TRANSACTIONS, vec![params]).await;
-    result
+        make_rpc_request(&url, Endpoints::GET_TRANSACTIONS, vec![params]).await?;
+    Ok(result)
 }

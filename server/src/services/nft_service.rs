@@ -11,8 +11,8 @@ pub struct UserNft {
     pub date: u64,
 }
 
-pub async fn get_nfts_for_address(wallet_address: String) -> Vec<UserNft> {
-    let nfts = get_nfts(Network::ETH, wallet_address).await;
+pub async fn get_nfts_for_address(wallet_address: String) -> Result<Vec<UserNft>,SerdeError> {
+    let nfts = get_nfts(Network::ETH, wallet_address).await?;
     let mut user_nfts: Vec<UserNft> = vec![];
 
     for nft in &nfts.ownedNfts {
@@ -25,5 +25,5 @@ pub async fn get_nfts_for_address(wallet_address: String) -> Vec<UserNft> {
         });
     }
 
-    user_nfts
+    Ok(user_nfts)
 }

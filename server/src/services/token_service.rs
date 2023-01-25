@@ -10,12 +10,12 @@ pub struct UserTokenBalance {
     pub logo: String,
 }
 
-pub async fn get_tokens_for_address(wallet_address: String) -> Vec<UserTokenBalance> {
-    let tokens = get_token_balances(Network::ETH, wallet_address).await;
+pub async fn get_tokens_for_address(wallet_address: String) -> Result<Vec<UserTokenBalance>, SerdeError> {
+    let tokens = get_token_balances(Network::ETH, wallet_address).await?;
     let mut user_tokens: Vec<UserTokenBalance> = vec![];
 
     for token_balance in &tokens.tokenBalances {
-        let result = get_tokens_metadata(Network::ETH, &token_balance.contractAddress).await;
+        let result = get_tokens_metadata(Network::ETH, &token_balance.contractAddress).await?;
         let logo = result.logo.clone().unwrap_or("null".to_string());
 
         let hexnum = token_balance.tokenBalance.trim_start_matches("0x");
@@ -32,5 +32,5 @@ pub async fn get_tokens_for_address(wallet_address: String) -> Vec<UserTokenBala
         user_tokens.push(current_token_balance);
     }
 
-    user_tokens
+    Ok(user_tokens)
 }
