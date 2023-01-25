@@ -178,7 +178,7 @@ where
     T: for<'a> Deserialize<'a>,
 {
     let client = Client::new();
-    let url = format!("{}/{}", api_url, endpoint);
+    let url = format!("{api_url}/{endpoint}");
     let res = client.get(url).query(&[params]).send().await;
 
     let result = res.unwrap();
@@ -213,10 +213,7 @@ fn construct_api_url(network: &str, asset: &str) -> String {
         Asset::NFT => API_URL_SUFFIX_NFT.to_string(),
         _ => todo!(),
     };
-    format!(
-        "{}{}{}/{}",
-        API_URL_BASE_PREFIX, network_string, asset_suffix, api_key
-    )
+    format!("{API_URL_BASE_PREFIX}{network_string}{asset_suffix}/{api_key}")
 }
 
 /// Get a list of tokens owned by a given address
