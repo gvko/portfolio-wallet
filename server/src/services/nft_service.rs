@@ -11,7 +11,7 @@ pub struct UserNft {
     pub date: u64,
 }
 
-pub async fn get_nfts_for_address(wallet_address: String) -> Result<Vec<UserNft>,SerdeError> {
+pub async fn get_nfts_for_address(wallet_address: String) -> Result<Vec<UserNft>, AlchemyApiError> {
     let nfts = get_nfts(Network::ETH, wallet_address).await?;
     let mut user_nfts: Vec<UserNft> = vec![];
 

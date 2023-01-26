@@ -10,7 +10,9 @@ pub struct UserTokenBalance {
     pub logo: String,
 }
 
-pub async fn get_tokens_for_address(wallet_address: String) -> Result<Vec<UserTokenBalance>, SerdeError> {
+pub async fn get_tokens_for_address(
+    wallet_address: String,
+) -> Result<Vec<UserTokenBalance>, AlchemyApiError> {
     let tokens = get_token_balances(Network::ETH, wallet_address).await?;
     let mut user_tokens: Vec<UserTokenBalance> = vec![];
 

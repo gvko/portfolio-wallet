@@ -38,7 +38,8 @@ async fn get_transactions(
 ) -> Result<Json<Vec<transaction_service::UserTransaction>>, Error> {
     let wallet_address = wallet_address.to_string();
 
-    let user_transactions = transaction_service::get_transactions_for_address(wallet_address).await?;
+    let user_transactions =
+        transaction_service::get_transactions_for_address(wallet_address).await?;
     Ok(Json(user_transactions))
 }
 

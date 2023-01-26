@@ -1,6 +1,8 @@
-use std::fmt::{Debug};
 use reqwest::{header, Client};
 use rocket::serde::{json::json, Deserialize, Serialize};
+use std::fmt::Debug;
+use std::io::{Error, ErrorKind};
+use thiserror::Error as ThisError;
 
 pub type SerdeError = serde_json::Error;
 
@@ -111,6 +113,22 @@ impl Asset {
     const NFT: &'static str = "nft";
 }
 
+#[derive(ThisError, Debug)]
+pub enum AlchemyApiError {
+    #[error("SerdeError: {0}")]
+    SerdeError(#[from] serde_json::Error),
+    #[error("RPC Error: {0}")]
+    RPCError(String),
+    #[error("RequestError: {0}")]
+    RequestError(#[from] reqwest::Error),
+}
+
+impl From<AlchemyApiError> for Error {
+    fn from(err: AlchemyApiError) -> Self {
+        Error::new(ErrorKind::Other, err)
+    }
+}
+
 const API_URL_BASE_PREFIX: &str = dotenv!("API_URL_BASE_PREFIX");
 const API_URL_PREFIX_ETH: &str = dotenv!("API_URL_PREFIX_ETH");
 const API_URL_PREFIX_POLYGON: &str = dotenv!("API_URL_PREFIX_POLYGON");
@@ -133,10 +151,14 @@ const API_KEY_POLYGON: &str = dotenv!("API_KEY_POLYGON");
 /// ```
 /// let response: MyResponseType = make_post_request(&"api_url", "my_endpoint", "some_value").await;
 /// ```
-async fn make_rpc_request<T, G>(api_url: &String, endpoint: &str, params: Vec<G>) -> Result<T, SerdeError>
-    where
-        T: for<'a> Deserialize<'a>,
-        G: Serialize + Debug,
+async fn make_rpc_request<T, G>(
+    api_url: &String,
+    endpoint: &str,
+    params: Vec<G>,
+) -> Result<T, AlchemyApiError>
+where
+    T: for<'a> Deserialize<'a>,
+    G: Serialize + Debug,
 {
     let data = json!({
         "jsonrpc": "2.0",
@@ -154,16 +176,24 @@ async fn make_rpc_request<T, G>(api_url: &String, endpoint: &str, params: Vec<G>
         .json(&data)
         .send()
         .await
-        .unwrap();
+        .map_err(AlchemyApiError::RequestError)?;
 
-    let result = res.json::<serde_json::Value>().await.unwrap();
-    let result_deserialized = serde_json::from_value::<T>(result["result"].clone());
+    let api_result: serde_json::Value = res.json().await.map_err(AlchemyApiError::RequestError)?;
+
+    if let Some(error) = api_result.get("error") {
+        let err_msg = error["message"].as_str().unwrap_or("Unknown API error");
+        return Err(AlchemyApiError::RPCError(err_msg.to_owned()));
+    }
+
+    let result_deserialized = serde_json::from_value::<T>(api_result["result"].clone())
+        .map_err(AlchemyApiError::SerdeError);
     match result_deserialized {
         Ok(result) => Ok(result),
         Err(err) => {
             error!("Could not deserialize the Alchemy API response. Endpoint: {endpoint}, Params: {params:?}");
+            //TODO: remove println statements
             println!("{:#?}", err.to_string());
-            println!("{:#?}", result);
+            println!("{api_result:#?}");
             Err(err)
         }
     }
@@ -183,23 +213,39 @@ async fn make_rpc_request<T, G>(api_url: &String, endpoint: &str, params: Vec<G>
 /// ```
 /// let response: MyResponseType = make_get_request(&"api_url", "my_endpoint", ("param1", "value1")).await;
 /// ```
-async fn make_get_request<T>(api_url: &String, endpoint: &str, params: (String, String)) -> Result<T, SerdeError>
-    where
-        T: for<'a> Deserialize<'a>,
+async fn make_get_request<T>(
+    api_url: &String,
+    endpoint: &str,
+    params: (String, String),
+) -> Result<T, AlchemyApiError>
+where
+    T: for<'a> Deserialize<'a>,
 {
-    let client = Client::new();
     let url = format!("{api_url}/{endpoint}");
-    let res = client.get(url).query(&[&params]).send().await;
+    let client = Client::new();
+    let res = client
+        .get(url)
+        .query(&[&params])
+        .send()
+        .await
+        .map_err(AlchemyApiError::RequestError)?;
 
-    let result = res.unwrap();
-    let result = result.json::<serde_json::Value>().await.unwrap();
-    let result_deserialized = serde_json::from_value::<T>(result.clone());
+    let api_result: serde_json::Value = res.json().await.map_err(AlchemyApiError::RequestError)?;
+
+    if let Some(error) = api_result.get("error") {
+        let err_msg = error["message"].as_str().unwrap_or("Unknown API error");
+        return Err(AlchemyApiError::RPCError(err_msg.to_owned()));
+    }
+
+    let result_deserialized =
+        serde_json::from_value::<T>(api_result.clone()).map_err(AlchemyApiError::SerdeError);
     match result_deserialized {
         Ok(result) => Ok(result),
         Err(err) => {
             error!("Could not deserialize the Alchemy API response. Endpoint: {endpoint}, Params: {params:?}");
+            //TODO: remove println statements
             println!("{:#?}", err.to_string());
-            println!("{:#?}", result);
+            println!("{api_result:#?}");
             Err(err)
         }
     }
@@ -249,7 +295,10 @@ fn construct_api_url(network: &str, asset: &str) -> String {
 /// ```
 /// let token_balances = get_token_balances("ETH", "0x1234567890abcdef").await;
 /// ```
-pub async fn get_token_balances(network: &str, wallet_address: String) -> Result<TokenBalances, SerdeError> {
+pub async fn get_token_balances(
+    network: &str,
+    wallet_address: String,
+) -> Result<TokenBalances, AlchemyApiError> {
     let url = construct_api_url(network, Asset::TOKEN);
     let result: TokenBalances =
         make_rpc_request(&url, Endpoints::GET_TOKEN_BALANCES, vec![wallet_address]).await?;
@@ -269,7 +318,10 @@ pub async fn get_token_balances(network: &str, wallet_address: String) -> Result
 /// ```
 /// let token_metadata = get_tokens_metadata("ETH", "0x1234567890abcdef").await;
 /// ```
-pub async fn get_tokens_metadata(network: &str, contract_address: &String) -> Result<TokenInfo, SerdeError> {
+pub async fn get_tokens_metadata(
+    network: &str,
+    contract_address: &String,
+) -> Result<TokenInfo, AlchemyApiError> {
     let url = construct_api_url(network, Asset::TOKEN);
     let result: TokenInfo =
         make_rpc_request(&url, Endpoints::GET_TOKEN_METADATA, vec![contract_address]).await?;
@@ -289,14 +341,17 @@ pub async fn get_tokens_metadata(network: &str, contract_address: &String) -> Re
 /// ```
 /// let nfts = get_nfts("ETH", "0x1234567890abcdef").await;
 /// ```
-pub async fn get_nfts(network: &str, wallet_address: String) -> Result<OwnedNftList, SerdeError> {
+pub async fn get_nfts(
+    network: &str,
+    wallet_address: String,
+) -> Result<OwnedNftList, AlchemyApiError> {
     let url = construct_api_url(network, Asset::NFT);
     let result: OwnedNftList = make_get_request(
         &url,
         Endpoints::GET_NFTS,
         ("owner".to_string(), wallet_address),
     )
-        .await?;
+    .await?;
     Ok(result)
 }
 
@@ -313,7 +368,10 @@ pub async fn get_nfts(network: &str, wallet_address: String) -> Result<OwnedNftL
 /// ```
 /// let transactions = get_wallet_transactions("ETH", "0x1234567890abcdef").await;
 /// ```
-pub async fn get_wallet_transactions(network: &str, wallet_address: String) -> Result<TransactionsList, SerdeError> {
+pub async fn get_wallet_transactions(
+    network: &str,
+    wallet_address: String,
+) -> Result<TransactionsList, AlchemyApiError> {
     let url = construct_api_url(network, Asset::TOKEN);
     let params = json!({
         "fromAddress": wallet_address,
